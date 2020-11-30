@@ -19,6 +19,8 @@ args = arg_parser.parse_args()
 
 
 def init_logging(debug=False):
+    logger = logging.getLogger("rateunlimiter")
+    logger.setLevel(logging.DEBUG)
     logformat = "%(asctime)s.%(msecs)03d %(name)s (%(process)d) %(levelname)s:%(message)s"
     log_formatter = logging.Formatter(fmt=logformat, datefmt='%Y-%m-%d %H:%M:%S')
     stderr_handler = logging.StreamHandler()
@@ -26,12 +28,11 @@ def init_logging(debug=False):
     stderr_handler.setLevel(logging.INFO)
     logger.addHandler(stderr_handler)
     if debug:
-        logger.setLevel(logging.DEBUG)
         file_handler = handlers.RotatingFileHandler("debug.log", maxBytes=2*1024*1024, backupCount=1, encoding="utf-8")
         file_handler.setFormatter(log_formatter)
         file_handler.setLevel(logging.DEBUG)
         logger.addHandler(file_handler)
-    return logging.getLogger("rateunlimiter")
+    return logger
 
 
 def sig_handler(signum, frame):  # pylint: disable=unused-argument
