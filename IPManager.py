@@ -25,7 +25,7 @@ class IPManager():
             ApiId=create_api_response['ApiId'],
             IntegrationMethod="ANY",
             IntegrationType="HTTP_PROXY",
-            IntegrationUri=""
+            IntegrationUri=dest_url
         )
         create_deployment_response = self.awsclient.create_deployment(
             ApiId=create_api_response['ApiId'],
