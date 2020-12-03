@@ -2,17 +2,21 @@ import argparse
 from collections import Counter
 import logging
 from logging import handlers
+import json
 import math
 import signal
 import sys
 import time
-import urllib3
+
+from ipmanager import IPManager
+from requestmanager import RequestManager
 
 arg_parser = argparse.ArgumentParser(description="Rate unlimiter")
 arg_parser.add_argument("url")
 arg_parser.add_argument("-t", "--threads", dest="threads", type=int, default=1)
 arg_parser.add_argument("--timeout", dest="timeout", type=int, default=20)
 arg_parser.add_argument("--method", dest="method", default="GET")
+arg_parser.add_argument("--rotateip", dest="rotateip", action="store_true")
 arg_parser.add_argument("--debug", dest="debug", action="store_true")
 
 args = arg_parser.parse_args()
@@ -81,7 +85,19 @@ if __name__ == "__main__":
     c = Counter()
     fail_count = 0
     request_times = []
-    manager = urllib3.PoolManager(num_pools=1, maxsize=args.threads)
+    if args.rotateip:
+        try:
+            with open("config.json") as c:
+                config = json.load(c)
+            iprotation = IPManager(config['aws_access_key'], config['aws_secret_key'], config['aws_region'])
+            logger.debug("Creating API gateway...")
+            iprotation.create(args.url)
+        except FileNotFoundError:
+            logger.critical("Config file not found and IP rotation enabled, quitting!")
+            sys.exit(-1)
+    else:
+        iprotation = None
+    manager = RequestManager(rotateip=iprotation, num_pools=1, maxsize=args.threads)
     c["total"] += 1
     logger.debug(f"Performing request {c['total']}")
     req = manager.request("GET", args.url)
