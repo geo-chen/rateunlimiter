@@ -41,7 +41,8 @@ def init_logging(debug=False):
 
 def sig_handler(signum, frame):  # pylint: disable=unused-argument
     logger.info("Exiting...")
-    manager.clear()
+    if iprotation:
+        iprotation.clear()
     sys.exit()
 
 
