@@ -17,6 +17,7 @@ arg_parser.add_argument("-t", "--threads", dest="threads", type=int, default=1)
 arg_parser.add_argument("--timeout", dest="timeout", type=int, default=20)
 arg_parser.add_argument("--method", dest="method", default="GET")
 arg_parser.add_argument("--rotateip", dest="rotateip", action="store_true")
+arg_parser.add_argument("--cooldown", dest="cooldown", type=int, default=10)
 arg_parser.add_argument("--debug", dest="debug", action="store_true")
 
 args = arg_parser.parse_args()
@@ -86,6 +87,7 @@ if __name__ == "__main__":
     c = Counter()
     fail_count = 0
     request_times = []
+    cooldown_duration = list(range(args.cooldown, 1, -2))
     if args.rotateip:
         try:
             with open("config.json") as c:
