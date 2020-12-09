@@ -44,6 +44,12 @@ def sig_handler(signum, frame):  # pylint: disable=unused-argument
     logger.info("Exiting...")
     if iprotation:
         iprotation.clear()
+    if args.debug:
+        debug_output = {}
+        debug_output['request_times'] = request_times
+        debug_output['fail_times'] = fail_times
+        with open("debug_requests.json", "w") as f:
+            json.dump(debug_output, f)
     sys.exit()
 
 
