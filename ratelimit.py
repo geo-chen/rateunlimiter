@@ -96,7 +96,6 @@ if __name__ == "__main__":
     logger.debug("Initialising connection pool...")
     INITIAL_DELAY = 10
     c = Counter()
-    fail_count = 0
     request_times = []
     fail_times = []
     cooldown_duration = list(range(args.cooldown, 1, -2))
