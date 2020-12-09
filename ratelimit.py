@@ -47,15 +47,19 @@ def sig_handler(signum, frame):  # pylint: disable=unused-argument
     sys.exit()
 
 
-def process_decay(delay):
-    new_delay = delay - math.sqrt(delay)
-    if new_delay <= 0:
-        return 0
+def process_decay(delay, min_delay=1):
+    delay -= 2
+    if delay < min_delay:
+        return min_delay
     else:
-        return new_delay
+        return delay
 
 
 def perform_requests(delay=0):
+    min_delay = 1
+    max_rate = float("inf")
+    first_fail = 0
+    fail_count = 0
     logger.info(f"Sleeping for {delay:.2f} seconds...")
     time.sleep(delay)
     while True:
@@ -66,13 +70,20 @@ def perform_requests(delay=0):
         logger.info(f"Received HTTP {req.status} response from server")
         req_rate = len(request_times) / (request_times[-1] - request_times[0]) * 60
         logger.info(f"Current request rate: {req_rate:.2f} r/min")
-        if req.status != 429:
-            c["success"] += 1
-            fail_count = 0
-            delay = process_decay(delay)
-        else:
+        if req.status == 429:
+            if fail_count == 0:  # First fail, set new limits
+                max_rate = req_rate
+                min_delay = 60/max_rate
+                first_fail = time.monotonic()
+            delay = cooldown_duration[fail_count]
             fail_count += 1
-            delay += 2**fail_count
+            fail_times.append([time.monotonic(), fail_count, 1])
+        else:
+            c["success"] += 1
+            if fail_count > 0:  # Block expired, calculate previous penalty
+                penalty_guess = time.monotonic() - first_fail
+                logger.info(f"Block expired, current penalty duration guess: {penalty_guess:.0f} seconds")
+            delay = process_decay(delay, min_delay)
         logger.info(f"Sleeping for {delay:.2f} seconds...")
         time.sleep(delay)
 
@@ -83,10 +94,11 @@ if __name__ == "__main__":
     signal.signal(signal.SIGTERM, sig_handler)
     signal.signal(signal.SIGINT, sig_handler)
     logger.debug("Initialising connection pool...")
-    INITIAL_DELAY = 5
+    INITIAL_DELAY = 10
     c = Counter()
     fail_count = 0
     request_times = []
+    fail_times = []
     cooldown_duration = list(range(args.cooldown, 1, -2))
     if args.rotateip:
         try:
