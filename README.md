@@ -38,8 +38,10 @@ This is the eventual design outside the timeframe of the HackSmith hackathon, wh
 
 ![Eventual](https://github.com/spigeo/rateunlimiter/blob/main/Documentation/Images/ss4.png?raw=true)
 
+
 ## Technical Layer
 ![Tech](https://github.com/spigeo/rateunlimiter/blob/main/Documentation/Images/ss5.png?raw=true)
+
 
 ## Setting Goal
 There are two main goals that we can choose from: 1. to maximize hits or 2. to minimize # of blocks/overall blocking duration.
@@ -63,3 +65,6 @@ Using “goal” to calculate bucket. Using the same example below from policy 2
 The rateunlimiter script can easily be plugged into proxies for the rotation of IP addresses (multi-threaded on multiple IP addresses), such as [Burp Suite's IP Rotate extension](https://github.com/RhinoSecurityLabs/IPRotate_Burp_Extension). Just specify the `--proxy-host` and `--proxy-port` values!
 
 ![IP Rotate](https://github.com/spigeo/rateunlimiter/blob/main/Documentation/Images/ss1.png?raw=true)
+
+## Dynamic Rate-Limiter Simulator
+We have a RL simulator for the pure purpose of testing the rateunlimiter out.
