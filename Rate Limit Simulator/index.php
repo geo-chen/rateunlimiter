@@ -5,7 +5,7 @@ created by SecuritySura for hacksmith 4.0 demo purposes
  function countint(){
   $ip = $_SERVER['REMOTE_ADDR'];
   global $countfile , $ipfile, $ipvalue, $ip, $connection;
- $connection = new mysqli("localhost", "badass", "badbadass", "hacksmith");
+ $connection = new mysqli("localhost", "badass", "x", "x");
    if ($connection->errno) {
     printf("Connect failed: %s\n", $connection->error);
     exit();
@@ -26,7 +26,7 @@ blockips1m();
 countint();
 function blockips1m(){
   global $countfile , $ipfile, $ipvalue, $ip2, $connection;
-  $connection = new mysqli("localhost", "badass", "badbadass", "hacksmith");
+  $connection = new mysqli("localhost", "badass", "x", "x");
  // $query = "SELECT COUNT(ip) FROM hacksmith.rl where time > date_sub(now(), interval 100 minute) AND ip= ?";
   $stmt = $connection->prepare("SELECT COUNT(ip) FROM hacksmith.rl where time > date_sub(now(), interval 1 minute) AND ip= ?");
   $stmt->bind_param("s", $_SERVER['REMOTE_ADDR']);
@@ -41,7 +41,7 @@ $test2 = exec("sudo /home/sura/script1m.sh $ip2");
 }
 function blockips3m(){
   global $countfile , $ipfile, $ipvalue, $ip1, $connection;
-  $connection = new mysqli("localhost", "badass", "badbadass", "hacksmith");
+  $connection = new mysqli("localhost", "badass", "x", "x");
  // $query = "SELECT COUNT(ip) FROM hacksmith.rl where time > date_sub(now(), interval 100 minute) AND ip= ?";
   $stmt = $connection->prepare("SELECT COUNT(ip) FROM hacksmith.rl where time > date_sub(now(), interval 3 minute) AND ip= ?");
   $stmt->bind_param("s", $_SERVER['REMOTE_ADDR']);
