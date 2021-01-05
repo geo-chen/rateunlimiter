@@ -18,6 +18,8 @@ arg_parser.add_argument("--timeout", dest="timeout", type=int, default=20)
 arg_parser.add_argument("--method", dest="method", default="GET")
 arg_parser.add_argument("--rotateip", dest="rotateip", action="store_true")
 arg_parser.add_argument("--cooldown", dest="cooldown", type=int, default=10)
+arg_parser.add_argument("--proxy-host", dest="proxy_host", default=None)
+arg_parser.add_argument("--proxy-port", dest="proxy_port", type=int, default=8080)
 arg_parser.add_argument("--debug", dest="debug", action="store_true")
 
 args = arg_parser.parse_args()
@@ -70,6 +72,9 @@ def perform_requests(delay=0):
     time.sleep(delay)
     while True:
         c["total"] += 1
+        if args.proxy_host:
+            req = manager.request("GET", "https://ipinfo.io/ip")
+            logger.info(f"Source IP: {req.data}")
         logger.debug(f"Performing request {c['total']}")
         req = manager.request("GET", args.url)
         request_times.append(time.monotonic())
@@ -117,8 +122,11 @@ if __name__ == "__main__":
             sys.exit(-1)
     else:
         iprotation = None
-    manager = RequestManager(rotateip=iprotation, num_pools=1, maxsize=args.threads)
+    manager = RequestManager(rotateip=iprotation, proxy_host=args.proxy_host, proxy_port=args.proxy_port, num_pools=1, maxsize=args.threads)
     c["total"] += 1
+    if args.proxy_host:
+        req = manager.request("GET", "http://ipinfo.io/ip")
+        logger.info(f"Source IP: {req.data.decode()}")
     logger.debug(f"Performing request {c['total']}")
     req = manager.request("GET", args.url)
     request_times.append(time.monotonic())
