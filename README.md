@@ -41,6 +41,24 @@ This is the eventual design outside the timeframe of the HackSmith hackathon, wh
 ## Technical Layer
 ![Tech](https://github.com/spigeo/rateunlimiter/blob/main/Documentation/Images/ss5.png?raw=true)
 
+## Setting Goal
+There are two main goals that we can choose from: 1. to maximize hits or 2. to minimize # of blocks/overall blocking duration.
+```
+python rateunlimiter.py --cooldown 20 --goal aggressive http://rate.limiter/d2
+python rateunlimiter.py --cooldown 20 --goal 9 http://rate.limiter/d2
+```
+Where goal can be:
+![Tech](https://github.com/spigeo/rateunlimiter/blob/main/Documentation/Images/ss6.png?raw=true)
+
+Using “goal” to calculate bucket. Using the same example below from policy 2, the bucket is 7min long in the 1st iteration (subject to changes as the target is assumed to be a dynamic rate-limiter):
+
+![Tech](https://github.com/spigeo/rateunlimiter/blob/main/Documentation/Images/ss7.png?raw=true)
+
+* let value=6, for 25/7 mins, we will try (10-6)* x% decrease in time, where x is the previously identified bucket time (initially 7min)
+* let value=7, for 25/7 mins, we will try (10-7)* x% decrease in time, where x is the previously identified bucket time
+* let value<5, goal is stealthy, no heartbeat attempts will be made to shorten the bucket above (to test if block duration is lessened)
+
+
 ## Burp Suite's IP Rotate with the rateunlimiter
 The rateunlimiter script can easily be plugged into proxies for the rotation of IP addresses (multi-threaded on multiple IP addresses), such as [Burp Suite's IP Rotate extension](https://github.com/RhinoSecurityLabs/IPRotate_Burp_Extension). Just specify the `--proxy-host` and `--proxy-port` values!
 
