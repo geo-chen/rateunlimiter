@@ -18,6 +18,7 @@ arg_parser.add_argument("--timeout", dest="timeout", type=int, default=20)
 arg_parser.add_argument("--method", dest="method", default="GET")
 arg_parser.add_argument("--rotateip", dest="rotateip", action="store_true")
 arg_parser.add_argument("--cooldown", dest="cooldown", type=int, default=10)
+arg_parser.add_argument("--goal", dest="goal", type=int, default=5)
 arg_parser.add_argument("--proxy-host", dest="proxy_host", default=None)
 arg_parser.add_argument("--proxy-port", dest="proxy_port", type=int, default=8080)
 arg_parser.add_argument("--debug", dest="debug", action="store_true")
@@ -89,6 +90,7 @@ def perform_requests(delay=0):
             delay = cooldown_duration[fail_count]
             fail_count += 1
             fail_times.append([time.monotonic(), fail_count, 1])
+            delay = 60*((args.goal/10)**fail_count)
         else:
             c["success"] += 1
             if fail_count > 0:  # Block expired, calculate previous penalty
