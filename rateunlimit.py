@@ -16,7 +16,6 @@ arg_parser.add_argument("url")
 arg_parser.add_argument("-t", "--threads", dest="threads", type=int, default=1)
 arg_parser.add_argument("--timeout", dest="timeout", type=int, default=20)
 arg_parser.add_argument("--method", dest="method", default="GET")
-arg_parser.add_argument("--rotateip", dest="rotateip", action="store_true")
 arg_parser.add_argument("--cooldown", dest="cooldown", type=int, default=10)
 arg_parser.add_argument("--goal", dest="goal", type=int, default=5)
 arg_parser.add_argument("--proxy-host", dest="proxy_host", default=None)
@@ -45,8 +44,6 @@ def init_logging(debug=False):
 
 def sig_handler(signum, frame):  # pylint: disable=unused-argument
     logger.info("Exiting...")
-    if iprotation:
-        iprotation.clear()
     if args.debug:
         debug_output = {}
         debug_output['request_times'] = request_times
@@ -112,19 +109,7 @@ if __name__ == "__main__":
     request_times = []
     fail_times = []
     cooldown_duration = list(range(args.cooldown, 1, -2))
-    if args.rotateip:
-        try:
-            with open("config.json") as c:
-                config = json.load(c)
-            iprotation = IPManager(config['aws_access_key'], config['aws_secret_key'], config['aws_region'])
-            logger.debug("Creating API gateway...")
-            iprotation.create(args.url)
-        except FileNotFoundError:
-            logger.critical("Config file not found and IP rotation enabled, quitting!")
-            sys.exit(-1)
-    else:
-        iprotation = None
-    manager = RequestManager(rotateip=iprotation, proxy_host=args.proxy_host, proxy_port=args.proxy_port, num_pools=1, maxsize=args.threads)
+    manager = RequestManager(proxy_host=args.proxy_host, proxy_port=args.proxy_port, num_pools=1, maxsize=args.threads)
     c["total"] += 1
     if args.proxy_host:
         req = manager.request("GET", "http://ipinfo.io/ip")
