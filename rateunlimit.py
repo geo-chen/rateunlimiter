@@ -54,18 +54,21 @@ def sig_handler(signum, frame):  # pylint: disable=unused-argument
 
 
 def process_decay(delay, min_delay=1):
-    delay -= 2
-    if delay < min_delay:
+    new_delay = 60/((60/delay)+1)
+    if new_delay < min_delay:
         return min_delay
     else:
-        return delay
+        return new_delay
 
 
 def perform_requests(delay=0):
-    min_delay = 1
+    global success_times
+    min_delay = 0.5
+    success_rate = 0
     max_rate = float("inf")
     first_fail = 0
     fail_count = 0
+    success_count = 0
     logger.info(f"Sleeping for {delay:.2f} seconds...")
     time.sleep(delay)
     while True:
@@ -80,19 +83,25 @@ def perform_requests(delay=0):
         req_rate = len(request_times) / (request_times[-1] - request_times[0]) * 60
         logger.info(f"Current request rate: {req_rate:.2f} r/min")
         if req.status == 429:
+            success_count = 0
             if fail_count == 0:  # First fail, set new limits
-                max_rate = req_rate
+                success_times = []
+                max_rate = math.ceil(req_rate)
                 min_delay = 60/max_rate
                 first_fail = time.monotonic()
-            delay = cooldown_duration[fail_count]
             fail_count += 1
             fail_times.append([time.monotonic(), fail_count, 1])
             delay = 60*((args.goal/10)**fail_count)
         else:
             c["success"] += 1
+            success_count += 1
+            success_times.append([time.monotonic(), success_count, 1])
+            if len(success_times) > 1:
+                success_rate = len(success_times) / (success_times[-1][0] - success_times[0][0]) * 60
             if fail_count > 0:  # Block expired, calculate previous penalty
                 penalty_guess = time.monotonic() - first_fail
-                logger.info(f"Block expired, current penalty duration guess: {penalty_guess:.0f} seconds")
+                fail_count = 0
+                delay = (cooldown_duration[::-1])[min(len(cooldown_duration)-1, fail_count)]
             delay = process_decay(delay, min_delay)
         logger.info(f"Sleeping for {delay:.2f} seconds...")
         time.sleep(delay)
@@ -104,9 +113,10 @@ if __name__ == "__main__":
     signal.signal(signal.SIGTERM, sig_handler)
     signal.signal(signal.SIGINT, sig_handler)
     logger.debug("Initialising connection pool...")
-    INITIAL_DELAY = 10
+    INITIAL_DELAY = 15
     c = Counter()
     request_times = []
+    success_times = []
     fail_times = []
     cooldown_duration = list(range(args.cooldown, 1, -2))
     manager = RequestManager(proxy_host=args.proxy_host, proxy_port=args.proxy_port, num_pools=1, maxsize=args.threads)
