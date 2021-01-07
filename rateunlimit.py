@@ -7,6 +7,7 @@ import math
 import signal
 import sys
 import time
+import urllib3
 
 from ipmanager import IPManager
 from requestmanager import RequestManager
@@ -72,17 +73,23 @@ def perform_requests(delay=0):
     logger.info(f"Sleeping for {delay:.2f} seconds...")
     time.sleep(delay)
     while True:
+        blocked = False
         c["total"] += 1
         if args.proxy_host:
             req = manager.request("GET", "https://ipinfo.io/ip")
             logger.info(f"Source IP: {req.data}")
         logger.debug(f"Performing request {c['total']}")
+        try:
         req = manager.request("GET", args.url)
         request_times.append(time.monotonic())
         logger.info(f"Received HTTP {req.status} response from server")
+        except urllib3.exceptions.ProtocolError:
+            blocked = True
+        if req.status == 429 or req.status == 403:
+            blocked = True
         req_rate = len(request_times) / (request_times[-1] - request_times[0]) * 60
         logger.info(f"Current request rate: {req_rate:.2f} r/min")
-        if req.status == 429:
+        if blocked:
             success_count = 0
             if fail_count == 0:  # First fail, set new limits
                 success_times = []
