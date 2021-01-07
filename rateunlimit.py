@@ -29,7 +29,7 @@ args = arg_parser.parse_args()
 def init_logging(debug=False):
     logger = logging.getLogger("rateunlimiter")
     logger.setLevel(logging.DEBUG)
-    logformat = "%(asctime)s.%(msecs)03d %(name)s (%(process)d) %(levelname)s:%(message)s"
+    logformat = "%(asctime)s %(name)s %(levelname)s:%(message)s"
     log_formatter = logging.Formatter(fmt=logformat, datefmt='%Y-%m-%d %H:%M:%S')
     stderr_handler = logging.StreamHandler()
     stderr_handler.setFormatter(log_formatter)
@@ -119,7 +119,7 @@ if __name__ == "__main__":
     logger.info("Initializing...")
     signal.signal(signal.SIGTERM, sig_handler)
     signal.signal(signal.SIGINT, sig_handler)
-    logger.debug("Initialising connection pool...")
+    logger.debug("Initializing connection pool...")
     INITIAL_DELAY = 15
     c = Counter()
     request_times = []
