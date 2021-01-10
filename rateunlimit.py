@@ -8,6 +8,7 @@ import signal
 import sys
 import time
 import urllib3
+import enlighten
 
 from ipmanager import IPManager
 from requestmanager import RequestManager
@@ -62,6 +63,16 @@ def process_decay(delay, min_delay=1):
         return new_delay
 
 
+def sleep_update(duration):
+    while duration > 0:
+        status_rate.update()
+        if duration >= 1.00:
+            time.sleep(1)
+        else:
+            time.sleep(duration)
+        duration -= 1
+
+
 def perform_requests(delay=0):
     global success_times
     min_delay = 0.5
@@ -70,8 +81,9 @@ def perform_requests(delay=0):
     first_fail = 0
     fail_count = 0
     success_count = 1
+    rate_guesses = {}
     logger.info(f"Sleeping for {delay:.2f} seconds...")
-    time.sleep(delay)
+    sleep_update(delay)
     while True:
         blocked = False
         c["total"] += 1
@@ -80,15 +92,16 @@ def perform_requests(delay=0):
             logger.info(f"Source IP: {req.data}")
         logger.debug(f"Performing request {c['total']}")
         try:
-        req = manager.request("GET", args.url)
-        request_times.append(time.monotonic())
-        logger.info(f"Received HTTP {req.status} response from server")
+            req = manager.request("GET", f"{args.url}?{c['total']}")
+            request_times.append(time.monotonic())
+            logger.info(f"Received HTTP {req.status} response from server")
         except urllib3.exceptions.ProtocolError:
             blocked = True
         if req.status == 429 or req.status == 403:
             blocked = True
         req_rate = len(request_times) / (request_times[-1] - request_times[0]) * 60
-        logger.info(f"Current request rate: {req_rate:.2f} r/min")
+        status_rate.update(cur_rate=f"{req_rate:.2f}")
+        logger.debug(f"Current request rate: {req_rate:.2f} req/min")
         if blocked:
             success_count = 0
             if fail_count == 0:  # First fail, set new limits
@@ -98,6 +111,17 @@ def perform_requests(delay=0):
                 first_fail = time.monotonic()
             fail_count += 1
             fail_times.append([time.monotonic(), fail_count, 1])
+            elapsed_time = (fail_times[-1][0] - request_times[0])
+            elapsed_min = math.floor(elapsed_time / 60)
+            if not rate_guesses.get(elapsed_min):
+                rate_guesses[elapsed_min] = round(len(request_times) / (request_times[-1] - request_times[0]) * 60 * elapsed_min)
+                logger.debug(f"New guess: {rate_guesses[elapsed_min]} req/{elapsed_min} min")
+            guess_str = ""
+            for guess_interval, guess_count in rate_guesses.items():
+                if guess_interval == 2:
+                    continue
+                guess_str += f" {guess_count} r/{guess_interval} min"
+            status_guess.update(guess=guess_str)
             delay = 60*((args.goal/10)**fail_count)
         else:
             c["success"] += 1
@@ -105,16 +129,26 @@ def perform_requests(delay=0):
             success_times.append([time.monotonic(), success_count, 1])
             if len(success_times) > 1:
                 success_rate = len(success_times) / (success_times[-1][0] - success_times[0][0]) * 60
+                # logger.info(f"Current success rate: {success_rate:.2f} r/min")
             if fail_count > 0:  # Block expired, calculate previous penalty
                 penalty_guess = time.monotonic() - first_fail
                 fail_count = 0
                 delay = (cooldown_duration[::-1])[min(len(cooldown_duration)-1, fail_count)]
+                # logger.info(f"Block expired, current penalty duration guess: {penalty_guess:.0f} seconds")
             delay = process_decay(delay, min_delay)
         logger.info(f"Sleeping for {delay:.2f} seconds...")
-        time.sleep(delay)
+        sleep_update(delay)
 
 
 if __name__ == "__main__":
+    console_manager = enlighten.get_manager()
+    status_rate = console_manager.status_bar(status_format="Rate Unlimiter{fill}Current rate: {cur_rate} req/min{fill}{elapsed}",
+                                             color="bright_white_on_lightslategray",
+                                             justify=enlighten.Justify.CENTER,
+                                             cur_rate="-")
+    status_guess = console_manager.status_bar(status_format="Current guess:{guess}",
+                                              guess="",
+                                              justify=enlighten.Justify.LEFT)
     logger = init_logging(args.debug)
     logger.info("Initializing...")
     signal.signal(signal.SIGTERM, sig_handler)
