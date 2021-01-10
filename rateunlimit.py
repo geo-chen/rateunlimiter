@@ -69,7 +69,7 @@ def perform_requests(delay=0):
     max_rate = float("inf")
     first_fail = 0
     fail_count = 0
-    success_count = 0
+    success_count = 1
     logger.info(f"Sleeping for {delay:.2f} seconds...")
     time.sleep(delay)
     while True:
@@ -139,5 +139,6 @@ if __name__ == "__main__":
     if req.status == 405:
         raise RuntimeError("Invalid method: Server returned HTTP 405")
     c["success"] += 1
+    success_times.append([time.monotonic(), 1, 1])
     logger.info(f"Received HTTP {req.status} response from server")
     perform_requests(INITIAL_DELAY)
