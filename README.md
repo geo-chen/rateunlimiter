@@ -68,3 +68,6 @@ The rateunlimiter script can easily be plugged into proxies for the rotation of 
 
 ## Dynamic Rate-Limiter Simulator
 We have a RL simulator for the pure purpose of testing the rateunlimiter out.
+
+## Next Steps
+* Burp Suite Extension
