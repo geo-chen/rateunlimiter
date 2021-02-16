@@ -10,7 +10,6 @@ import time
 import urllib3
 import enlighten
 
-from ipmanager import IPManager
 from requestmanager import RequestManager
 
 arg_parser = argparse.ArgumentParser(description="Rate unlimiter")
@@ -117,9 +116,15 @@ def perform_requests(delay=0):
                 rate_guesses[elapsed_min] = round(len(request_times) / (request_times[-1] - request_times[0]) * 60 * elapsed_min)
                 logger.debug(f"New guess: {rate_guesses[elapsed_min]} req/{elapsed_min} min")
             guess_str = ""
+            guess_last = 0
+            guess_rm = []
             for guess_interval, guess_count in rate_guesses.items():
-                if guess_interval == 2:
-                    continue
+                if guess_count == rate_guesses.get(guess_last, 0):
+                    guess_rm.append(guess_last)
+                guess_last = guess_interval
+            for rm in guess_rm:
+                rate_guesses.pop(rm)
+            for guess_interval, guess_count in rate_guesses.items():
                 guess_str += f" {guess_count} r/{guess_interval} min"
             status_guess.update(guess=guess_str)
             delay = 60*((args.goal/10)**fail_count)
