@@ -72,6 +72,11 @@ def sleep_update(duration):
         duration -= 1
 
 
+def count_requests(list_times, min_time=0, max_time=float("inf")):
+    counts = [x[0] for x in list_times if (min_time <= x[0] <= max_time)]
+    return len(counts)
+
+
 def perform_requests(delay=0):
     global success_times
     min_delay = 0.5
