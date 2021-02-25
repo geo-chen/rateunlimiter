@@ -117,8 +117,12 @@ def perform_requests(delay=0):
                 first_fail = time.monotonic()
             fail_count += 1
             fail_times.append([time.monotonic(), fail_count, 1])
-            elapsed_time = (fail_times[-1][0] - request_times[0][0])
+            if len(unblock_times) < 1:
+                elapsed_time = (fail_times[-1][0] - request_times[0][0])
+            else:
+                elapsed_time = (fail_times[-2][0] - fail_times[-1][0])
             elapsed_min = math.floor(elapsed_time / 60)
+            logger.debug(f"Blocked, elapsed time: {elapsed_time} sec ({elapsed_time / 60} min)")
             if not rate_guesses.get(elapsed_min):
                 rate_guesses[elapsed_min] = round(len(request_times) / (request_times[-1][0] - request_times[0][0]) * 60 * elapsed_min)
                 logger.debug(f"New guess: {rate_guesses[elapsed_min]} req/{elapsed_min} min")
@@ -131,7 +135,7 @@ def perform_requests(delay=0):
                 if guess_interval == 1:
                     guess_last = guess_interval
                     continue
-                if abs((guess_count/guess_interval) - (rate_guesses.get(guess_last, 0))/guess_interval) == 1:
+                if abs(round((guess_count/guess_interval)) - round((rate_guesses.get(guess_last, 0))/guess_interval)) == 1:
                     guess_rm.append(guess_last)
             for rm in guess_rm:
                 rate_guesses.pop(rm)
