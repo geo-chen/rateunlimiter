@@ -98,13 +98,13 @@ def perform_requests(delay=0):
         logger.debug(f"Performing request {c['total']}")
         try:
             req = manager.request("GET", f"{args.url}?{c['total']}")
-            request_times.append(time.monotonic())
+            request_times.append([time.monotonic()])
             logger.info(f"Received HTTP {req.status} response from server")
         except urllib3.exceptions.ProtocolError:
             blocked = True
         if req.status == 429 or req.status == 403:
             blocked = True
-        req_rate = len(request_times) / (request_times[-1] - request_times[0]) * 60
+        req_rate = len(request_times) / (request_times[-1][0] - request_times[0][0]) * 60
         status_rate.update(cur_rate=f"{req_rate:.2f}")
         logger.debug(f"Current request rate: {req_rate:.2f} req/min")
         if blocked:
@@ -118,12 +118,13 @@ def perform_requests(delay=0):
             fail_count += 1
             fail_times.append([time.monotonic(), fail_count, 1])
             if len(unblock_times) == 0:
-                elapsed_time = (fail_times[-1][0] - request_times[0])
+                elapsed_time = (fail_times[-1][0] - request_times[0][0])
             else:
                 elapsed_time = (fail_times[-1][0] - unblock_times[-1])
             elapsed_min = math.floor(elapsed_time / 60)
             if not rate_guesses.get(elapsed_min):
-                rate_guesses[elapsed_min] = round(len(request_times) / (request_times[-1] - request_times[0]) * 60 * elapsed_min)
+                rate_guesses[elapsed_min] = count_requests(list_times=request_times, max_time=first_fail)
+                #rate_guesses[elapsed_min] = round(len(request_times) / (request_times[-1][0] - request_times[0][0]) * 60 * elapsed_min)
                 logger.debug(f"New guess: {rate_guesses[elapsed_min]} req/{elapsed_min} min")
             guess_str = ""
             guess_last = 0
@@ -186,7 +187,7 @@ if __name__ == "__main__":
         logger.info(f"Source IP: {req.data.decode()}")
     logger.debug(f"Performing request {c['total']}")
     req = manager.request("GET", args.url)
-    request_times.append(time.monotonic())
+    request_times.append([time.monotonic()])
     if req.status == 429:
         raise RuntimeError("Already rate-limited")
     if req.status == 405:
