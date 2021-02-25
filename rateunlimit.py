@@ -117,28 +117,30 @@ def perform_requests(delay=0):
                 first_fail = time.monotonic()
             fail_count += 1
             fail_times.append([time.monotonic(), fail_count, 1])
-            if len(unblock_times) == 0:
-                elapsed_time = (fail_times[-1][0] - request_times[0][0])
-            else:
-                elapsed_time = (fail_times[-1][0] - unblock_times[-1])
+            elapsed_time = (fail_times[-1][0] - request_times[0][0])
             elapsed_min = math.floor(elapsed_time / 60)
             if not rate_guesses.get(elapsed_min):
-                rate_guesses[elapsed_min] = count_requests(list_times=request_times, max_time=first_fail)
-                #rate_guesses[elapsed_min] = round(len(request_times) / (request_times[-1][0] - request_times[0][0]) * 60 * elapsed_min)
+                rate_guesses[elapsed_min] = round(len(request_times) / (request_times[-1][0] - request_times[0][0]) * 60 * elapsed_min)
                 logger.debug(f"New guess: {rate_guesses[elapsed_min]} req/{elapsed_min} min")
             guess_str = ""
             guess_last = 0
             guess_rm = []
+
+            # Additional filtering for guesses
             for guess_interval, guess_count in rate_guesses.items():
-                if guess_count == rate_guesses.get(guess_last, 0):
+                if guess_interval == 1:
+                    guess_last = guess_interval
+                    continue
+                if abs((guess_count/guess_interval) - (rate_guesses.get(guess_last, 0))/guess_interval) == 1:
                     guess_rm.append(guess_last)
-                guess_last = guess_interval
             for rm in guess_rm:
                 rate_guesses.pop(rm)
+
+            # Write to status bar
             for guess_interval, guess_count in rate_guesses.items():
                 guess_str += f" {guess_count} r/{guess_interval} min"
             status_guess.update(guess=guess_str)
-            delay = 60*((args.goal/10)**fail_count)
+            delay = 120*((args.goal/10)**fail_count)
         else:
             if was_blocked:
                 was_blocked = False
