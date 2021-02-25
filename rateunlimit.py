@@ -81,6 +81,7 @@ def perform_requests(delay=0):
     fail_count = 0
     success_count = 1
     rate_guesses = {}
+    was_blocked = False
     logger.info(f"Sleeping for {delay:.2f} seconds...")
     sleep_update(delay)
     while True:
@@ -102,6 +103,7 @@ def perform_requests(delay=0):
         status_rate.update(cur_rate=f"{req_rate:.2f}")
         logger.debug(f"Current request rate: {req_rate:.2f} req/min")
         if blocked:
+            was_blocked = True
             success_count = 0
             if fail_count == 0:  # First fail, set new limits
                 success_times = []
@@ -110,7 +112,10 @@ def perform_requests(delay=0):
                 first_fail = time.monotonic()
             fail_count += 1
             fail_times.append([time.monotonic(), fail_count, 1])
-            elapsed_time = (fail_times[-1][0] - request_times[0])
+            if len(unblock_times) == 0:
+                elapsed_time = (fail_times[-1][0] - request_times[0])
+            else:
+                elapsed_time = (fail_times[-1][0] - unblock_times[-1])
             elapsed_min = math.floor(elapsed_time / 60)
             if not rate_guesses.get(elapsed_min):
                 rate_guesses[elapsed_min] = round(len(request_times) / (request_times[-1] - request_times[0]) * 60 * elapsed_min)
@@ -129,6 +134,9 @@ def perform_requests(delay=0):
             status_guess.update(guess=guess_str)
             delay = 60*((args.goal/10)**fail_count)
         else:
+            if was_blocked:
+                was_blocked = False
+                unblock_times.append(time.monotonic())
             c["success"] += 1
             success_count += 1
             success_times.append([time.monotonic(), success_count, 1])
@@ -164,6 +172,7 @@ if __name__ == "__main__":
     request_times = []
     success_times = []
     fail_times = []
+    unblock_times = []
     cooldown_duration = list(range(args.cooldown, 1, -2))
     manager = RequestManager(proxy_host=args.proxy_host, proxy_port=args.proxy_port, num_pools=1, maxsize=args.threads)
     c["total"] += 1
