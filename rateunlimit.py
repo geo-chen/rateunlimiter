@@ -87,7 +87,7 @@ def perform_requests(delay=0):
         blocked = False
         c["total"] += 1
         if args.proxy_host:
-            req = manager.request("GET", "https://ipinfo.io/ip")
+            req = manager.request("GET", "http://ipinfo.io/ip")
             logger.info(f"Source IP: {req.data}")
         logger.debug(f"Performing request {c['total']}")
         try:
