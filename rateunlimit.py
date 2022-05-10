@@ -39,7 +39,10 @@ def init_logging(debug=False):
     log_formatter = logging.Formatter(fmt=logformat, datefmt='%Y-%m-%d %H:%M:%S')
     stderr_handler = logging.StreamHandler()
     stderr_handler.setFormatter(log_formatter)
-    stderr_handler.setLevel(logging.INFO)
+    if debug:
+        stderr_handler.setLevel(logging.DEBUG)
+    else:
+        stderr_handler.setLevel(logging.INFO)
     logger.addHandler(stderr_handler)
     if debug:
         file_handler = handlers.RotatingFileHandler("debug.log", maxBytes=2*1024*1024, backupCount=1, encoding="utf-8")
