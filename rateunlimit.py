@@ -72,6 +72,11 @@ def sleep_update(duration):
         duration -= 1
 
 
+def count_requests(list_times, min_time=0, max_time=float("inf")):
+    counts = [x[0] for x in list_times if (min_time <= x[0] <= max_time)]
+    return len(counts)
+
+
 def perform_requests(delay=0):
     global success_times
     min_delay = 0.5
@@ -81,6 +86,7 @@ def perform_requests(delay=0):
     fail_count = 0
     success_count = 1
     rate_guesses = {}
+    was_blocked = False
     logger.info(f"Sleeping for {delay:.2f} seconds...")
     sleep_update(delay)
     while True:
@@ -92,16 +98,17 @@ def perform_requests(delay=0):
         logger.debug(f"Performing request {c['total']}")
         try:
             req = manager.request("GET", f"{args.url}?{c['total']}")
-            request_times.append(time.monotonic())
+            request_times.append([time.monotonic()])
             logger.info(f"Received HTTP {req.status} response from server")
         except urllib3.exceptions.ProtocolError:
             blocked = True
         if req.status == 429 or req.status == 403:
             blocked = True
-        req_rate = len(request_times) / (request_times[-1] - request_times[0]) * 60
+        req_rate = len(request_times) / (request_times[-1][0] - request_times[0][0]) * 60
         status_rate.update(cur_rate=f"{req_rate:.2f}")
         logger.debug(f"Current request rate: {req_rate:.2f} req/min")
         if blocked:
+            was_blocked = True
             success_count = 0
             if fail_count == 0:  # First fail, set new limits
                 success_times = []
@@ -110,25 +117,38 @@ def perform_requests(delay=0):
                 first_fail = time.monotonic()
             fail_count += 1
             fail_times.append([time.monotonic(), fail_count, 1])
-            elapsed_time = (fail_times[-1][0] - request_times[0])
+            if len(unblock_times) < 1:
+                elapsed_time = (fail_times[-1][0] - request_times[0][0])
+            else:
+                elapsed_time = (fail_times[-2][0] - fail_times[-1][0])
             elapsed_min = math.floor(elapsed_time / 60)
+            logger.debug(f"Blocked, elapsed time: {elapsed_time} sec ({elapsed_time / 60} min)")
             if not rate_guesses.get(elapsed_min):
-                rate_guesses[elapsed_min] = round(len(request_times) / (request_times[-1] - request_times[0]) * 60 * elapsed_min)
+                rate_guesses[elapsed_min] = round(len(request_times) / (request_times[-1][0] - request_times[0][0]) * 60 * elapsed_min)
                 logger.debug(f"New guess: {rate_guesses[elapsed_min]} req/{elapsed_min} min")
             guess_str = ""
             guess_last = 0
             guess_rm = []
+
+            # Additional filtering for guesses
             for guess_interval, guess_count in rate_guesses.items():
-                if guess_count == rate_guesses.get(guess_last, 0):
+                if guess_interval == 1:
+                    guess_last = guess_interval
+                    continue
+                if abs(round((guess_count/guess_interval)) - round((rate_guesses.get(guess_last, 0))/guess_interval)) == 1:
                     guess_rm.append(guess_last)
-                guess_last = guess_interval
             for rm in guess_rm:
                 rate_guesses.pop(rm)
+
+            # Write to status bar
             for guess_interval, guess_count in rate_guesses.items():
                 guess_str += f" {guess_count} r/{guess_interval} min"
             status_guess.update(guess=guess_str)
-            delay = 60*((args.goal/10)**fail_count)
+            delay = 120*((args.goal/10)**fail_count)
         else:
+            if was_blocked:
+                was_blocked = False
+                unblock_times.append(time.monotonic())
             c["success"] += 1
             success_count += 1
             success_times.append([time.monotonic(), success_count, 1])
@@ -164,6 +184,7 @@ if __name__ == "__main__":
     request_times = []
     success_times = []
     fail_times = []
+    unblock_times = []
     cooldown_duration = list(range(args.cooldown, 1, -2))
     manager = RequestManager(proxy_host=args.proxy_host, proxy_port=args.proxy_port, num_pools=1, maxsize=args.threads)
     c["total"] += 1
@@ -172,7 +193,7 @@ if __name__ == "__main__":
         logger.info(f"Source IP: {req.data.decode()}")
     logger.debug(f"Performing request {c['total']}")
     req = manager.request("GET", args.url)
-    request_times.append(time.monotonic())
+    request_times.append([time.monotonic()])
     if req.status == 429:
         raise RuntimeError("Already rate-limited")
     if req.status == 405:
