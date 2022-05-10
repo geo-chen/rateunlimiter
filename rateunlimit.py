@@ -1,16 +1,21 @@
 import argparse
 from collections import Counter
+from datetime import datetime
 import logging
 from logging import handlers
 import json
 import math
+import os.path
 import signal
 import sys
 import time
 import urllib3
 import enlighten
+from sqlalchemy import create_engine
+from sqlalchemy.orm import sessionmaker
 
 from requestmanager import RequestManager
+from database import Base, RequestLog
 
 arg_parser = argparse.ArgumentParser(description="Rate unlimiter")
 arg_parser.add_argument("url")
@@ -97,13 +102,23 @@ def perform_requests(delay=0):
             logger.info(f"Source IP: {req.data}")
         logger.debug(f"Performing request {c['total']}")
         try:
-            req = manager.request("GET", f"{args.url}?{c['total']}")
+            new_request = RequestLog(timestamp=datetime.now(),
+                                     url=f"{args.url}",
+                                     status=0,
+                                     blocked=blocked)
+            req = manager.request("GET", f"{args.url}")
             request_times.append([time.monotonic()])
             logger.info(f"Received HTTP {req.status} response from server")
+            new_request.status = req.status
         except urllib3.exceptions.ProtocolError:
             blocked = True
+            new_request.blocked = True
+            new_request.status = 999  # Placeholder value for error
         if req.status == 429 or req.status == 403:
             blocked = True
+            new_request.blocked = True
+        session.add(new_request)
+        session.commit()
         req_rate = len(request_times) / (request_times[-1][0] - request_times[0][0]) * 60
         status_rate.update(cur_rate=f"{req_rate:.2f}")
         logger.debug(f"Current request rate: {req_rate:.2f} req/min")
@@ -178,6 +193,12 @@ if __name__ == "__main__":
     logger.info("Initializing...")
     signal.signal(signal.SIGTERM, sig_handler)
     signal.signal(signal.SIGINT, sig_handler)
+    logger.debug("Initializing database...")
+    engine = create_engine(f"sqlite:///requests.db")
+    if not os.path.exists("requests.db"):
+        Base.metadata.create_all(engine)
+    Session = sessionmaker(bind=engine)
+    session = Session()
     logger.debug("Initializing connection pool...")
     INITIAL_DELAY = 15
     c = Counter()
@@ -192,12 +213,21 @@ if __name__ == "__main__":
         req = manager.request("GET", "http://ipinfo.io/ip")
         logger.info(f"Source IP: {req.data.decode()}")
     logger.debug(f"Performing request {c['total']}")
+    new_request = RequestLog(timestamp=datetime.now(),
+                             url=args.url,
+                             status=0,
+                             blocked=False) 
     req = manager.request("GET", args.url)
     request_times.append([time.monotonic()])
     if req.status == 429:
+        new_request.status = 429
         raise RuntimeError("Already rate-limited")
     if req.status == 405:
+        new_request.status = 405
         raise RuntimeError("Invalid method: Server returned HTTP 405")
+    new_request.status = req.status
+    session.add(new_request)
+    session.commit()
     c["success"] += 1
     success_times.append([time.monotonic(), 1, 1])
     logger.info(f"Received HTTP {req.status} response from server")
