@@ -10,6 +10,7 @@ import signal
 import sys
 import time
 import urllib3
+import uuid
 import enlighten
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
@@ -102,7 +103,8 @@ def perform_requests(delay=0):
             logger.info(f"Source IP: {req.data}")
         logger.debug(f"Performing request {c['total']}")
         try:
-            new_request = RequestLog(timestamp=datetime.now(),
+            new_request = RequestLog(session_id=session_id,
+                                     timestamp=datetime.now(),
                                      url=f"{args.url}",
                                      status=0,
                                      blocked=blocked)
@@ -200,6 +202,7 @@ if __name__ == "__main__":
     Session = sessionmaker(bind=engine)
     session = Session()
     logger.debug("Initializing connection pool...")
+    session_id = str(uuid.uuid4())
     INITIAL_DELAY = 15
     c = Counter()
     request_times = []
@@ -213,7 +216,8 @@ if __name__ == "__main__":
         req = manager.request("GET", "http://ipinfo.io/ip")
         logger.info(f"Source IP: {req.data.decode()}")
     logger.debug(f"Performing request {c['total']}")
-    new_request = RequestLog(timestamp=datetime.now(),
+    new_request = RequestLog(session_id=session_id,
+                             timestamp=datetime.now(),
                              url=args.url,
                              status=0,
                              blocked=False) 
