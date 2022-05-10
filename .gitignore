@@ -104,3 +104,4 @@ ENV/
 
 /debug.log*
 /debug*.json
+/requests.db
