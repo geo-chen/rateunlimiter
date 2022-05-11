@@ -200,14 +200,14 @@ def perform_requests(delay=0):
 
 if __name__ == "__main__":
     console_manager = enlighten.get_manager()
-    status_rate = console_manager.status_bar(status_format="Rate Unlimiter{fill}Current rate: {cur_rate} req/min{fill}{elapsed}",
-                                             color="bright_white_on_lightslategray",
-                                             justify=enlighten.Justify.CENTER,
-                                             cur_rate="-")
     status_guess = console_manager.status_bar(status_format="Current guess:{guess}{fill}URL: {url}",
                                               guess="",
                                               url="",
                                               justify=enlighten.Justify.CENTER)
+    status_rate = console_manager.status_bar(status_format="Rate Unlimiter{fill}Current rate: {cur_rate} req/min{fill}{elapsed}",
+                                             color="bright_white_on_lightslategray",
+                                             justify=enlighten.Justify.CENTER,
+                                             cur_rate="-")
     logger = init_logging(args.debug)
     logger.info("Initializing...")
     signal.signal(signal.SIGTERM, sig_handler)
