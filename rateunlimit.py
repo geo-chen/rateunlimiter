@@ -140,6 +140,7 @@ def perform_requests(delay=0):
                     lower_bound = datetime.now() - timedelta(minutes=test_interval)
                     if (first_fail - request_times[0][0]) < test_interval*60:
                         # Session has not been running long enough, skip remaining time intervals
+                        logger.debug(f"Skipping time intervals >{test_interval} min")
                         break
                     prev_requests = (session.query(RequestLog).filter(
                                     (RequestLog.timestamp >= lower_bound) &
@@ -172,6 +173,7 @@ def perform_requests(delay=0):
                     guess_last = guess_interval
                     continue
                 if abs(round((guess_count/guess_interval)) - round((rate_guesses.get(guess_last, 0))/guess_interval)) == 1:
+                    logger.debug(f"Filtering out interval {guess_interval} min")
                     guess_rm.append(guess_last)
             for rm in guess_rm:
                 rate_guesses.pop(rm)
