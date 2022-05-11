@@ -61,6 +61,7 @@ def sig_handler(signum, frame):  # pylint: disable=unused-argument
         debug_output['fail_times'] = fail_times
         with open("debug_requests.json", "w") as f:
             json.dump(debug_output, f)
+    console_manager.stop()
     sys.exit()
 
 
@@ -209,9 +210,10 @@ if __name__ == "__main__":
                                              color="bright_white_on_lightslategray",
                                              justify=enlighten.Justify.CENTER,
                                              cur_rate="-")
-    status_guess = console_manager.status_bar(status_format="Current guess:{guess}",
+    status_guess = console_manager.status_bar(status_format="Current guess:{guess}{fill}URL: {url}",
                                               guess="",
-                                              justify=enlighten.Justify.LEFT)
+                                              url="",
+                                              justify=enlighten.Justify.CENTER)
     logger = init_logging(args.debug)
     logger.info("Initializing...")
     signal.signal(signal.SIGTERM, sig_handler)
@@ -256,4 +258,5 @@ if __name__ == "__main__":
     c["success"] += 1
     success_times.append([time.monotonic(), 1, 1])
     logger.info(f"Received HTTP {req.status} response from server")
+    status_guess.update(url=args.url)
     perform_requests(INITIAL_DELAY)
