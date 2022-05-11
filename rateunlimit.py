@@ -180,7 +180,7 @@ def perform_requests(delay=0):
             for guess_interval, guess_count in rate_guesses.items():
                 guess_str += f" {guess_count} r/{guess_interval} min"
             status_guess.update(guess=guess_str)
-            delay = 120*((args.goal/10)**fail_count)
+            delay = 30**(1+(args.goal/100)+(fail_count/100))
         else:
             if was_blocked:
                 was_blocked = False
