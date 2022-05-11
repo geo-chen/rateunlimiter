@@ -89,7 +89,7 @@ def count_requests(list_times, min_time=0, max_time=float("inf")):
 
 
 def perform_requests(delay=0):
-    global request_times, success_times
+    global fail_times, request_times, success_times
     min_delay = 0.5
     success_rate = 0
     first_fail = 0
@@ -148,21 +148,15 @@ def perform_requests(delay=0):
                                     .count()) - 1  # Minus one to exclude the latest blocked request (since it tripped the limit)
                     min_delay = 60*test_interval/prev_requests
                     logger.debug(f"New guess (DB): {prev_requests} req/{test_interval} min")
+                    rate_guesses[test_interval] = prev_requests
                     if test_interval == 1:
                         continue
                     if prev_requests/test_interval == (rate_guesses.get(test_interval-1, 0)) / (test_interval-1):
                         # Frequency is the same as for the previous interval, assume no new policy for this new interval
                         logger.debug(f"Calculated rate is equal to previous time interval, skipping guess for {test_interval} min interval")
                         continue
-                    rate_guesses[test_interval] = prev_requests
             fail_count += 1
             fail_times.append([time.monotonic(), fail_count, 1])
-            if len(unblock_times) < 1:
-                elapsed_time = (fail_times[-1][0] - request_times[0][0])
-            else:
-                elapsed_time = (fail_times[-2][0] - fail_times[-1][0])
-            elapsed_min = math.floor(elapsed_time / 60)
-            logger.debug(f"Blocked, elapsed time: {elapsed_time} sec ({elapsed_time / 60} min)")
             guess_str = ""
             guess_last = 0
             guess_rm = []
