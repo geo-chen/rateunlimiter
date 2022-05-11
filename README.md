@@ -50,7 +50,7 @@ python rateunlimiter.py --cooldown 20 --goal aggressive http://rate.limiter/d2
 python rateunlimiter.py --cooldown 20 --goal 9 http://rate.limiter/d2
 ```
 Where goal can be:
-![Tech](https://github.com/spigeo/rateunlimiter/blob/main/Documentation/Images/ss6.png?raw=true)
+![Tech](https://github.com/spigeo/rateunlimiter/blob/main/Documentation/Images/ss8.png?raw=true)
 
 Using “goal” to calculate bucket. Using the same example below from policy 2, the bucket is 7min long in the 1st iteration (subject to changes as the target is assumed to be a dynamic rate-limiter):
 
