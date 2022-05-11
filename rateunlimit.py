@@ -1,6 +1,6 @@
 import argparse
 from collections import Counter
-from datetime import datetime
+from datetime import datetime, timedelta
 import logging
 from logging import handlers
 import json
@@ -24,6 +24,7 @@ arg_parser.add_argument("-t", "--threads", dest="threads", type=int, default=1)
 arg_parser.add_argument("--timeout", dest="timeout", type=int, default=20)
 arg_parser.add_argument("--method", dest="method", default="GET")
 arg_parser.add_argument("--cooldown", dest="cooldown", type=int, default=10)
+arg_parser.add_argument("--max-interval", dest="max_interval", type=int, default=5)
 arg_parser.add_argument("--goal", dest="goal", type=int, default=5)
 arg_parser.add_argument("--proxy-host", dest="proxy_host", default=None)
 arg_parser.add_argument("--proxy-port", dest="proxy_port", type=int, default=8080)
@@ -87,13 +88,15 @@ def count_requests(list_times, min_time=0, max_time=float("inf")):
 
 
 def perform_requests(delay=0):
-    global success_times
+    global request_times, success_times
     min_delay = 0.5
     success_rate = 0
     max_rate = float("inf")
     first_fail = 0
     fail_count = 0
     success_count = 1
+    fail_times = []
+    unblock_times = []
     rate_guesses = {}
     was_blocked = False
     logger.info(f"Sleeping for {delay:.2f} seconds...")
@@ -135,6 +138,24 @@ def perform_requests(delay=0):
                 max_rate = math.ceil(req_rate)
                 min_delay = 60/max_rate
                 first_fail = time.monotonic()
+                for test_interval in range(1, args.max_interval+1):
+                    lower_bound = datetime.now() - timedelta(minutes=test_interval)
+                    if (first_fail - request_times[0][0]) < test_interval*60:
+                        # Session has not been running long enough, skip remaining time intervals
+                        break
+                    prev_requests = (session.query(RequestLog).filter(
+                                    (RequestLog.timestamp >= lower_bound) &
+                                    (RequestLog.session_id == session_id))
+                                    .count()) - 1  # Minus one to exclude the latest blocked request (since it tripped the limit)
+                    min_delay = 60*test_interval/prev_requests
+                    logger.debug(f"New guess (DB): {prev_requests} req/{test_interval} min")
+                    if test_interval == 1:
+                        continue
+                    if prev_requests/test_interval == (rate_guesses.get(test_interval-1, 0)) / (test_interval-1):
+                        # Frequency is the same as for the previous interval, assume no new policy for this new interval
+                        logger.debug(f"Calculated rate is equal to previous time interval, skipping guess for {test_interval} min interval")
+                        continue
+                    rate_guesses[test_interval] = prev_requests
             fail_count += 1
             fail_times.append([time.monotonic(), fail_count, 1])
             if len(unblock_times) < 1:
@@ -143,9 +164,6 @@ def perform_requests(delay=0):
                 elapsed_time = (fail_times[-2][0] - fail_times[-1][0])
             elapsed_min = math.floor(elapsed_time / 60)
             logger.debug(f"Blocked, elapsed time: {elapsed_time} sec ({elapsed_time / 60} min)")
-            if not rate_guesses.get(elapsed_min):
-                rate_guesses[elapsed_min] = round(len(request_times) / (request_times[-1][0] - request_times[0][0]) * 60 * elapsed_min)
-                logger.debug(f"New guess: {rate_guesses[elapsed_min]} req/{elapsed_min} min")
             guess_str = ""
             guess_last = 0
             guess_rm = []
