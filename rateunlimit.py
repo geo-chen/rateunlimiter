@@ -92,7 +92,6 @@ def perform_requests(delay=0):
     global request_times, success_times
     min_delay = 0.5
     success_rate = 0
-    max_rate = float("inf")
     first_fail = 0
     fail_count = 0
     success_count = 1
@@ -136,8 +135,6 @@ def perform_requests(delay=0):
             success_count = 0
             if fail_count == 0:  # First fail, set new limits
                 success_times = []
-                max_rate = math.ceil(req_rate)
-                min_delay = 60/max_rate
                 first_fail = time.monotonic()
                 for test_interval in range(1, args.max_interval+1):
                     lower_bound = datetime.now() - timedelta(minutes=test_interval)
@@ -197,6 +194,7 @@ def perform_requests(delay=0):
             if fail_count > 0:  # Block expired, calculate previous penalty
                 penalty_guess = time.monotonic() - first_fail
                 fail_count = 0
+                fail_times = []
                 delay = (cooldown_duration[::-1])[min(len(cooldown_duration)-1, fail_count)]
                 # logger.info(f"Block expired, current penalty duration guess: {penalty_guess:.0f} seconds")
             delay = process_decay(delay, min_delay)
@@ -230,8 +228,6 @@ if __name__ == "__main__":
     c = Counter()
     request_times = []
     success_times = []
-    fail_times = []
-    unblock_times = []
     cooldown_duration = list(range(args.cooldown, 1, -2))
     manager = RequestManager(proxy_host=args.proxy_host, proxy_port=args.proxy_port, num_pools=1, maxsize=args.threads)
     c["total"] += 1
@@ -247,10 +243,8 @@ if __name__ == "__main__":
     req = manager.request("GET", args.url)
     request_times.append([time.monotonic()])
     if req.status == 429:
-        new_request.status = 429
         raise RuntimeError("Already rate-limited")
     if req.status == 405:
-        new_request.status = 405
         raise RuntimeError("Invalid method: Server returned HTTP 405")
     new_request.status = req.status
     session.add(new_request)
